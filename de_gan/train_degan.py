@@ -10,7 +10,8 @@ from PIL import Image
 
 # Custom importing
 from parameters import PATH_WEIGHTS_GENERATOR, PATH_WEIGHTS_DISCRIMINATOR
-from networks import Generator, Discriminator
+from de_gan.networks import Generator, Discriminator
+from utils import predict_image
 
 
 def atoi(text):
@@ -22,11 +23,12 @@ def natural_keys(text):
 
 
 def weights_init(m):
-    if type(m) == nn.Conv2d:
-        nn.init.kaiming_normal_(m.weight.data)
+    classname = m.__class__.__name__
+    if classname.find('Conv') != -1:
+        nn.init.normal_(tensor=m.weight.data, mean=0.0, std=0.02)
 
 
-def get_patches(degraded_image, clear_image, size_patches=256, stride=192):
+def patches(degraded_image, clear_image, size_patches=256, stride=192):
     degraded_patches, clear_patches = [], []
     h, w = degraded_image.shape
     new_h, new_w = ((h // size_patches) + 1) * size_patches, ((w // size_patches) + 1) * size_patches
@@ -46,9 +48,9 @@ num_epochs = 80
 
 generator = Generator().to(device)
 generator.apply(weights_init)
-generator.load_state_dict(torch.load(PATH_WEIGHTS_GENERATOR))
+# generator.load_state_dict(torch.load(PATH_WEIGHTS_GENERATOR))
 discriminator = Discriminator().to(device)
-discriminator.load_state_dict(torch.load(PATH_WEIGHTS_DISCRIMINATOR))
+# discriminator.load_state_dict(torch.load(PATH_WEIGHTS_DISCRIMINATOR))
 
 # Loss functions
 criterion = nn.MSELoss().to(device)
@@ -60,20 +62,13 @@ batch_size = 4
 train_set, gt_set = [], []
 
 # Found files
-for dir_path, _, filenames in os.walk('dataset'):
+for dir_path, _, filenames in os.walk('../dataset'):
     for file in filenames:
         train_set.append(os.path.abspath(os.path.join(dir_path, file)))
-for dir_path, _, filenames in os.walk('ground_truth'):
+for dir_path, _, filenames in os.walk('../ground_truth'):
     for file in filenames:
         gt_set.append(os.path.abspath(os.path.join(dir_path, file)))
 train_set.sort(key=natural_keys), gt_set.sort(key=natural_keys)
-
-# Test Image
-size_patches = 256
-path = f'test/1.bmp'
-image = Image.open(path).convert('L')
-test_image = transforms.ToTensor()(image).to(device)
-test_image = test_image.unsqueeze(0)
 
 # Visualized output
 d_x, d_g_z1, d_g_z2 = 0, 0, 0
@@ -83,6 +78,12 @@ error_discriminator = None
 error_generator_one = None
 error_generator_two = None
 
+# Test image configuration
+size_patches = 256
+path = f'../test/1.bmp'
+image = Image.open(path).convert('L')
+test_image = transforms.ToTensor()(image).to(device).unsqueeze(0)
+
 for epoch in range(num_epochs):
     for i in range(len(train_set)):
         degraded_image = Image.open(train_set[i]).convert('L')
@@ -91,8 +92,7 @@ for epoch in range(num_epochs):
         clear_image = Image.open(gt_set[i]).convert('L')
         clear_image.save('Current_Clear_Image.png')
         clear_image = plt.imread('Current_Clear_Image.png')
-        degraded_batch, clear_batch = get_patches(degraded_image, clear_image)
-
+        degraded_batch, clear_batch = patches(degraded_image, clear_image)
         batch_count = degraded_batch.shape[0] // batch_size
         for n_batch in range(batch_count):
             seed = range(n_batch * batch_size, (n_batch * batch_size) + batch_size)
@@ -105,10 +105,9 @@ for epoch in range(num_epochs):
             n_fake_batch = torch.full((batch_size * 16 * 16,), fill_value=0., dtype=torch.float, device=device)
 
             ######################################################################
-            # (1) Update D: Maximize log(D(IW, IGT)) + log(1-D(IW, G(IW))
+            # (1) Update D: Maximize log(D(I_W, I_GT)) + log(1 - D(I_W, G(I_W))
             ######################################################################
             # Training with real
-            # discriminator.train(True)
             discriminator.zero_grad()
             output = discriminator(n_clear_batch, n_degraded_batch).view(-1)
             error_discriminator_real = criterion(output, n_valid_batch)
@@ -116,7 +115,6 @@ for epoch in range(num_epochs):
             d_x = output.mean().item()
 
             # Training with fake
-            # with torch.no_grad():
             n_generated_batch = generator(n_degraded_batch)
             output = discriminator(n_generated_batch.detach(), n_degraded_batch).view(-1)
             error_discriminator_fake = criterion(output, n_fake_batch)
@@ -126,7 +124,7 @@ for epoch in range(num_epochs):
             optimizerDiscriminator.step()
 
             ######################################################################
-            # (1) Update G: Maximize log(D(IW, IGT)) + log(1-D(IW, G(IW))
+            # (1) Update G: Maximize log(1 - D(I_W, G(I_W))
             ######################################################################
             generator.zero_grad()
             output = discriminator(n_generated_batch, n_degraded_batch).view(-1)
@@ -138,21 +136,23 @@ for epoch in range(num_epochs):
             #####################################################################
             # Addition Log Loss function
             #####################################################################
-            generator.zero_grad()
-            output_generator = generator(n_degraded_batch)
-            error_generator_two = criterion(output_generator, n_clear_batch)
-            error_generator_two.backward()
-            d_g_z3 = output.mean().item()
-            optimizerGenerator.step()
+            # generator.zero_grad()
+            # output_generator = generator(n_degraded_batch)
+            # error_generator_two = criterion(output_generator, n_clear_batch)
+            # error_generator_two.backward()
+            # d_g_z3 = output.mean().item()
+            # optimizerGenerator.step()
 
         if i % 50 == 0:
             epoch_text = f"[{epoch}/{num_epochs}][{i}/{len(train_set)}]"
-            loss_text = "\tLoss_D: %.4f\tLoss_G: %.4f / %.4f" % (
-                error_discriminator.item(), error_generator_one.item(), error_generator_two.item())
+            # loss_text = "\tLoss_D: %.4f\tLoss_G: %.4f / %.4f" % (
+            # error_discriminator.item(), error_generator_one.item(), error_generator_two.item())
+            loss_text = "\tLoss_D: %.4f\tLoss_G: %.4f" % (
+                error_discriminator.item(), error_generator_one.item())
             error_text = f"\t\tD(I_W, I_GT): %.4f\tD(I_W, G(I_W)) %.4f / %.4f" % (d_x, d_g_z1, d_g_z2)
             print(epoch_text + loss_text + error_text)
             with torch.no_grad():
-                n_bin_batch = generator(test_image[:, :, :256, :256]).detach()
-                v_utils.save_image(n_bin_batch, os.path.join("output", "bin_sample.png"), normalize=True)
+                bin_batch = predict_image(test_image, generator, device)
+                v_utils.save_image(bin_batch, os.path.join("../output", "bin_sample.png"), normalize=True)
             torch.save(generator.state_dict(), PATH_WEIGHTS_GENERATOR)
             torch.save(discriminator.state_dict(), PATH_WEIGHTS_DISCRIMINATOR)
