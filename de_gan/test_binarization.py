@@ -11,7 +11,7 @@ from parameters import PATH_WEIGHTS_GENERATOR
 
 torch.set_printoptions(precision=10)  # Print all decimals
 
-path = '../dataset/'
+path = '../data/dataset/'
 num_gpu = 1
 device = torch.device("cuda:0" if (torch.cuda.is_available() and num_gpu > 0) else "cpu")
 

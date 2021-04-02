@@ -6,11 +6,11 @@ from PIL import Image
 import matplotlib.pyplot as plt
 
 # Custom importing
-from binarization import grayscale_conversion, lowlights_map, binarization_blackbox
-from read_write_image import upload_files, pre_processing
+from binarization.binarization import grayscale_conversion, lowlights_map, binarization_blackbox
+from binarization.read_write_image import upload_files, pre_processing
 
 
-def store_image(image: np.ndarray, name: str, path_name: str):
+def store_image(image: np.ndarray, folder_name: str, path_name: str):
     if not os.path.exists(path_name):
         try:
             os.makedirs(path_name)
@@ -19,23 +19,21 @@ def store_image(image: np.ndarray, name: str, path_name: str):
         else:
             print(f"Successfully created the directories {path_name}")
     image = image.astype(np.uint8)
-    cv2.imwrite(f'{path_name}/{name}', image)
+    cv2.imwrite(f'{path_name}/{folder_name}', image)
 
 
 year = 2018
-grayfication_dest = f'DIBCO/{year}/Output/Grayfication'
-lowlightsMap_dest = f'DIBCO/{year}/Output/Lowlights_map'
-result_dest = f'DIBCO/{year}/Output/Result'
-path_source = f'DIBCO/{year}/Dataset/'
 
-# grayfication_dest = 'output/grayfication'
-# lowlightsMap_dest = 'output/lowlights_map'
-# result_dest = 'output/final'
-# path_source = "dataset/"
-
+# Setting input folders
+path_source = f'data/dataset/DIBCO/{year}/'
 path_images = upload_files(path_source)
+
+# Setting output folders
+grayfication_dest = f'output/DIBCO_{year}/Grayfication'
+lowlightsMap_dest = f'output/DIBCO_{year}/Lowlights_map'
+result_dest = f'output/DIBCO_{year}/Results'
 folder_destination = [grayfication_dest, lowlightsMap_dest, result_dest]
-type = ['grayfication', 'lowlights_map', 'bin']
+types = ['grayfication', 'lowlights_map', 'bin']
 for path in path_images:
     # tuning_parameters(path)
 
@@ -61,7 +59,7 @@ for path in path_images:
     grayscale_image *= 255.0
     images = [grayscale_image, grayscale_image, bin_image]
     for index in range(3):
-        name = f'{name_image}_{type[index]}.bmp'
+        name = f'{name_image}_{types[index]}.bmp'
         store_image(images[index], name, folder_destination[index])
 
     # store_image(lm_with_gray, bin_name_grayficitation, lowlightsMap_dest)

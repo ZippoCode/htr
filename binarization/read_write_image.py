@@ -11,9 +11,10 @@ def upload_files(source_path: str):
     :param source_path:  The folder which contains the files
     :return: list<str>
     """
-    if not os.path.exists(source_path):
-        sys.exit(f"[ERROR] Path \"{source_path}\" not found!")
     images = list()
+    if not os.path.exists(source_path):
+        print(f"[ERROR] Path \"{source_path}\" not found!")
+        return images
     for file in os.listdir(path=source_path):
         if file.endswith('.png') or file.endswith('.jpg') or file.endswith('bmp'):
             images.append(source_path + file)

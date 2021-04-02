@@ -62,7 +62,7 @@ batch_size = 4
 train_set, gt_set = [], []
 
 # Found files
-for dir_path, _, filenames in os.walk('../dataset'):
+for dir_path, _, filenames in os.walk('../data/dataset'):
     for file in filenames:
         train_set.append(os.path.abspath(os.path.join(dir_path, file)))
 for dir_path, _, filenames in os.walk('../ground_truth'):
